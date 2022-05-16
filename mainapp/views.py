@@ -1,0 +1,99 @@
+import random
+
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.shortcuts import render, get_object_or_404
+from .models import ProductCategory, Product
+
+
+def main(request):
+
+    context = {
+        'page_title': 'main',
+    }
+
+    return render(request, 'mainapp/index.html', context)
+
+
+def products(request):
+    hot_product = get_hot_product()
+    context = {
+        'page_title': 'catalogue',
+        'hot_product': hot_product,
+        'same_products': same_products(hot_product),
+        'categories': categories_list,
+    }
+    return render(request, 'mainapp/products.html', context)
+
+
+def same_products(hot_product):
+    return Product.objects.filter(category=hot_product.category).exclude(pk=hot_product.pk)[:3]
+
+
+def get_hot_product():
+    product_ids = Product.objects.values_list('id', flat=True).all()
+    random_id = random.choice(product_ids)
+    return Product.objects.get(pk=random_id)
+
+
+def product_page(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    context = {
+        'page_title': 'product page',
+        'product': product,
+        'categories': categories_list,
+    }
+    return render(request, 'mainapp/product_page.html', context)
+
+
+def contact(request):
+
+    locations = [
+        {'city': 'Moscow',
+         'phone': '+7-111-111-1111',
+         'email': 'moscow@email.ru',
+         'address': 'center'},
+        {'city': 'Tver',
+         'phone': '+7-222-222-2222',
+         'email': 'tver@email.ru',
+         'address': 'suburbs'},
+        {'city': 'Kaluga',
+         'phone': '+7-333-333-333',
+         'email': 'kaluga@email.ru',
+         'address': 'business center'}
+    ]
+
+    context = {
+        'page_title': 'contacts',
+        'locations': locations,
+    }
+    return render(request, 'mainapp/contact.html', context)
+
+
+def category(request, pk):
+    page_num = request.GET.get('page', 1)
+    if pk == 0:
+        category = {'pk': 0, 'name': 'all'}
+        products = Product.objects.all()
+    else:
+        category = get_object_or_404(ProductCategory, pk=pk)
+        products = category.product_set.all()
+
+    products_paginator = Paginator(products, 2)
+    try:
+        products = products_paginator.page(page_num)
+    except PageNotAnInteger:
+        products = products_paginator.page(1)
+    except EmptyPage:
+        products = products_paginator.page(products_paginator.num_pages)
+
+    context = {
+        'page_title': 'goods of the category',
+        'categories': categories_list,
+        'category': category,
+        'products': products,
+    }
+    return render(request, 'mainapp/category_products.html', context)
+
+
+products_list = Product.objects.all()
+categories_list = ProductCategory.objects.all()
